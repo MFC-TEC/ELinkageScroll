@@ -2,10 +2,7 @@
 多子view嵌套滚动通用解决方案
 
 ### Demo运行效果
-
-    <div class='row'>
-        <img src='https://github.com/baiduapp-tec/LinkageScrollLayout/blob/master/gif/H5-NA-WVRV.gif' width="300px" style='border: #f1f1f1 solid 1px'/>
-    </div>
+<img src='https://github.com/baiduapp-tec/ELinkageScroll/blob/master/elinkagescroll.gif' width="300px" style='border: #f1f1f1 solid 1px'/><br>
     
 # 使用方法
 #### xml
