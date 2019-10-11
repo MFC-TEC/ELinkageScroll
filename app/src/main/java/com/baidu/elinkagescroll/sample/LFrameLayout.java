@@ -58,10 +58,7 @@ public class LFrameLayout extends NestedFrameLayout implements ILinkageScroll {
                 }
 
                 if (mLinkageEvent != null) {
-                    mLinkageEvent.onContentScroll(LFrameLayout.this,
-                            mRecyclerView.computeVerticalScrollExtent(),
-                            mRecyclerView.computeVerticalScrollOffset(),
-                            mRecyclerView.computeVerticalScrollRange());
+                    mLinkageEvent.onContentScroll(LFrameLayout.this);
                 }
             }
         });
@@ -106,6 +103,21 @@ public class LFrameLayout extends NestedFrameLayout implements ILinkageScroll {
             @Override
             public boolean isScrollable() {
                 return true;
+            }
+
+            @Override
+            public int getVerticalScrollExtent() {
+                return mRecyclerView.computeVerticalScrollExtent();
+            }
+
+            @Override
+            public int getVerticalScrollOffset() {
+                return mRecyclerView.computeVerticalScrollOffset();
+            }
+
+            @Override
+            public int getVerticalScrollRange() {
+                return mRecyclerView.computeVerticalScrollRange();
             }
         };
     }

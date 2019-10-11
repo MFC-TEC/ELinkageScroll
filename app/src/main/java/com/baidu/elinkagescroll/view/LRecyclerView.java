@@ -50,10 +50,7 @@ public class LRecyclerView extends RecyclerView implements ILinkageScroll {
                 }
 
                 if (mLinkageEvent != null) {
-                    mLinkageEvent.onContentScroll(LRecyclerView.this,
-                            computeVerticalScrollExtent(),
-                            computeVerticalScrollOffset(),
-                            computeVerticalScrollRange());
+                    mLinkageEvent.onContentScroll(LRecyclerView.this);
                 }
             }
         });
@@ -98,6 +95,21 @@ public class LRecyclerView extends RecyclerView implements ILinkageScroll {
             @Override
             public boolean isScrollable() {
                 return true;
+            }
+
+            @Override
+            public int getVerticalScrollExtent() {
+                return computeVerticalScrollExtent();
+            }
+
+            @Override
+            public int getVerticalScrollOffset() {
+                return computeVerticalScrollOffset();
+            }
+
+            @Override
+            public int getVerticalScrollRange() {
+                return computeVerticalScrollRange();
             }
         };
     }

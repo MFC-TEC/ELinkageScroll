@@ -54,23 +54,32 @@ public class LWebView extends WebView implements ILinkageScroll, NestedScrolling
     }
 
     @Override
+    protected void onScrollChanged(int l, int t, int oldl, int oldt) {
+        super.onScrollChanged(l, t, oldl, oldt);
+
+        if (!canScrollVertically(1)
+                || isScrollToBottom()) {
+            if (mLinkageEvent != null) {
+                mLinkageEvent.onContentScrollToBottom(this);
+            }
+        }
+        if (!canScrollVertically(-1)) {
+            if (mLinkageEvent != null) {
+                mLinkageEvent.onContentScrollToTop(this);
+            }
+        }
+
+        if (mLinkageEvent != null) {
+            mLinkageEvent.onContentScroll(this);
+        }
+    }
+
+    @Override
     public void computeScroll() {
         if (mScroller.computeScrollOffset()) {
             final int currY = mScroller.getCurrY();
             scrollTo(0, currY);
             invalidate();
-
-            if (!canScrollVertically(1)
-                    || isScrollToBottom()) {
-                if (mLinkageEvent != null) {
-                    mLinkageEvent.onContentScrollToBottom(this);
-                }
-            }
-            if (!canScrollVertically(-1)) {
-                if (mLinkageEvent != null) {
-                    mLinkageEvent.onContentScrollToTop(this);
-                }
-            }
         }
     }
 
@@ -249,6 +258,21 @@ public class LWebView extends WebView implements ILinkageScroll, NestedScrolling
             @Override
             public boolean isScrollable() {
                 return true;
+            }
+
+            @Override
+            public int getVerticalScrollExtent() {
+                return computeVerticalScrollExtent();
+            }
+
+            @Override
+            public int getVerticalScrollOffset() {
+                return computeVerticalScrollOffset();
+            }
+
+            @Override
+            public int getVerticalScrollRange() {
+                return computeVerticalScrollRange();
             }
         };
     }

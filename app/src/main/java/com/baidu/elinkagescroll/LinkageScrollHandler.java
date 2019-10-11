@@ -50,4 +50,25 @@ public interface LinkageScrollHandler {
      * @return
      */
     boolean isScrollable();
+
+    /**
+     * get scrollbar extent value
+     *
+     * @return extent
+     */
+    int getVerticalScrollExtent();
+
+    /**
+     * get scrollbar offset value
+     *
+     * @return extent
+     */
+    int getVerticalScrollOffset();
+
+    /**
+     * get scrollbar range value
+     *
+     * @return extent
+     */
+    int getVerticalScrollRange();
 }

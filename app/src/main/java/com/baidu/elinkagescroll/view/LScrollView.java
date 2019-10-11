@@ -54,16 +54,17 @@ public class LScrollView extends NestedScrollView implements ILinkageScroll {
         }
 
         if (mLinkageChildrenEvent != null) {
-            mLinkageChildrenEvent.onContentScroll(this,
-                    getVerticalScrollExtent(),
-                    getVerticalScrollOffset(),
-                    getVerticalScrollRange());
+            mLinkageChildrenEvent.onContentScroll(this);
         }
     }
 
     @Override
     public void setChildLinkageEvent(ChildLinkageEvent event) {
         mLinkageChildrenEvent = event;
+
+        if (mLinkageChildrenEvent != null) {
+            mLinkageChildrenEvent.onContentScroll(this);
+        }
     }
 
     @Override
@@ -99,36 +100,24 @@ public class LScrollView extends NestedScrollView implements ILinkageScroll {
             public boolean isScrollable() {
                 return true;
             }
+
+            @SuppressLint("RestrictedApi")
+            @Override
+            public int getVerticalScrollExtent() {
+                return computeVerticalScrollExtent();
+            }
+
+            @SuppressLint("RestrictedApi")
+            @Override
+            public int getVerticalScrollOffset() {
+                return computeVerticalScrollOffset();
+            }
+
+            @SuppressLint("RestrictedApi")
+            @Override
+            public int getVerticalScrollRange() {
+                return computeVerticalScrollRange();
+            }
         };
-    }
-
-    /**
-     * 获取VerticalScrollExtent
-     *
-     * @return
-     */
-    @SuppressLint("RestrictedApi")
-    private int getVerticalScrollExtent() {
-        return computeVerticalScrollExtent();
-    }
-
-    /**
-     * 获取VerticalScrollOffset
-     *
-     * @return
-     */
-    @SuppressLint("RestrictedApi")
-    private int getVerticalScrollOffset() {
-        return computeVerticalScrollOffset();
-    }
-
-    /**
-     * 获取VerticalScrollRange
-     *
-     * @return
-     */
-    @SuppressLint("RestrictedApi")
-    private int getVerticalScrollRange() {
-        return computeVerticalScrollRange();
     }
 }

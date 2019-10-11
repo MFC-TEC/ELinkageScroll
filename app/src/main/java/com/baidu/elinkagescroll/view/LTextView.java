@@ -38,6 +38,21 @@ public class LTextView extends TextView implements ILinkageScroll {
             public boolean isScrollable() {
                 return false;
             }
+
+            @Override
+            public int getVerticalScrollExtent() {
+                return getHeight();
+            }
+
+            @Override
+            public int getVerticalScrollOffset() {
+                return 0;
+            }
+
+            @Override
+            public int getVerticalScrollRange() {
+                return getHeight();
+            }
         };
     }
 }

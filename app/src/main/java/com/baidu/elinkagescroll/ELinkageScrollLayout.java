@@ -1,6 +1,7 @@
 package com.baidu.elinkagescroll;
 
 import android.content.Context;
+import android.graphics.Canvas;
 import android.graphics.RectF;
 import android.support.v4.view.NestedScrollingParent;
 import android.support.v4.view.NestedScrollingParentHelper;
@@ -13,11 +14,13 @@ import android.view.View;
 import android.view.ViewConfiguration;
 import android.view.ViewGroup;
 import android.view.ViewParent;
+import android.webkit.HttpAuthHandler;
 import android.widget.Scroller;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 多个子view在垂直方向联动滚动的容器。
@@ -35,7 +38,6 @@ import java.util.List;
  * 子view是否可滚动的判断：((子view的高度 == 容器高度) && isScrollable())
  *
  * <p>
- *
  *
  */
 public class ELinkageScrollLayout extends ViewGroup implements NestedScrollingParent {
@@ -153,13 +155,9 @@ public class ELinkageScrollLayout extends ViewGroup implements NestedScrollingPa
         }
 
         @Override
-        public void onContentScroll(View target,
-                                    int scrollExtent,
-                                    int scrollOffset,
-                                    int scrollRange) {
-
-
-
+        public void onContentScroll(View target) {
+            // 收到子view滚动事件，显示滚动条
+            awakenScrollBars();
         }
     };
 
@@ -182,6 +180,11 @@ public class ELinkageScrollLayout extends ViewGroup implements NestedScrollingPa
         mMaximumVelocity = viewConfiguration.getScaledMaximumFlingVelocity();
         mMinimumVelocity = viewConfiguration.getScaledMinimumFlingVelocity();
         mPosIndicator.setTouchSlop(viewConfiguration.getScaledTouchSlop());
+
+        // 确保联动容器调用onDraw()方法
+        setWillNotDraw(false);
+        // enable vertical scrollbar
+        setVerticalScrollBarEnabled(true);
     }
 
     /**
@@ -367,6 +370,8 @@ public class ELinkageScrollLayout extends ViewGroup implements NestedScrollingPa
      * @param isInertial 是否是惯性滚动
      */
     public void scrollTo(int x, int y, boolean isInertial) {
+        // 显示滚动条
+        awakenScrollBars();
         // 区分惯性滚动和非惯性滚动
         // 1. 上边界和下边界检查时一致
         // 2. 惯性滚动增加中间态的edge检查
@@ -414,6 +419,8 @@ public class ELinkageScrollLayout extends ViewGroup implements NestedScrollingPa
 
     @Override
     public void scrollBy(int x, int y) {
+        // 显示滚动条
+        awakenScrollBars();
         // 上下边界检查
         int scrollY = getScrollY();
         int deltaY;
@@ -565,6 +572,8 @@ public class ELinkageScrollLayout extends ViewGroup implements NestedScrollingPa
         int count = getChildCount();
         for (int i = 0; i < count; i++) {
             View child = getChildAt(i);
+            child.setVerticalScrollBarEnabled(false);
+            child.setHorizontalScrollBarEnabled(false);
             if (!(child instanceof ILinkageScroll)) {
                 throw new RuntimeException("Child in LinkageScrollLayout must implement ILinkageScroll");
             }
@@ -580,7 +589,8 @@ public class ELinkageScrollLayout extends ViewGroup implements NestedScrollingPa
 
         int size = mLinkageChildren.size();
         for (int i = 0; i < size; i++) {
-            measureChild(mLinkageChildren.get(i), widthMeasureSpec, heightMeasureSpec);
+            View child = mLinkageChildren.get(i);
+            measureChild(child, widthMeasureSpec, heightMeasureSpec);
         }
     }
 
@@ -742,6 +752,37 @@ public class ELinkageScrollLayout extends ViewGroup implements NestedScrollingPa
     @Override
     public int getNestedScrollAxes() {
         return mParentHelper.getNestedScrollAxes();
+    }
+
+    @Override
+    protected int computeVerticalScrollExtent() {
+        return super.computeVerticalScrollExtent();
+    }
+
+    @Override
+    protected int computeVerticalScrollRange() {
+        int range = 0;
+        for (View child : mLinkageChildren) {
+            ILinkageScroll linkageScroll = (ILinkageScroll) child;
+            int childRange = linkageScroll.provideScrollHandler().getVerticalScrollRange();
+            range += childRange;
+        }
+
+        Log.d("zhanghao", "range: " + range);
+        return range;
+    }
+
+    @Override
+    protected int computeVerticalScrollOffset() {
+        int offset = 0;
+        for (View child : mLinkageChildren) {
+            ILinkageScroll linkageScroll = (ILinkageScroll) child;
+            int childOffset = linkageScroll.provideScrollHandler().getVerticalScrollOffset();
+            offset += childOffset;
+        }
+        offset += getScrollY();
+        Log.d("zhanghao", "offset: " + offset);
+        return offset;
     }
 
     /**

@@ -35,4 +35,19 @@ public class LinkageScrollHandlerAdapter implements LinkageScrollHandler {
     public boolean isScrollable() {
         return false;
     }
+
+    @Override
+    public int getVerticalScrollExtent() {
+        return 0;
+    }
+
+    @Override
+    public int getVerticalScrollOffset() {
+        return 0;
+    }
+
+    @Override
+    public int getVerticalScrollRange() {
+        return 0;
+    }
 }
