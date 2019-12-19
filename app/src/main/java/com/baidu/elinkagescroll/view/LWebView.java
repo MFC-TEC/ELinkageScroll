@@ -5,6 +5,7 @@ import android.support.v4.view.NestedScrollingChild;
 import android.support.v4.view.NestedScrollingChildHelper;
 import android.support.v4.view.ViewCompat;
 import android.util.AttributeSet;
+import android.util.Log;
 import android.view.MotionEvent;
 import android.view.VelocityTracker;
 import android.view.View;
@@ -84,6 +85,21 @@ public class LWebView extends WebView implements ILinkageScroll, NestedScrolling
     }
 
     /**
+     * 是否可以在垂直方向上滚动
+     *
+     * @param direction
+     * @return
+     */
+    private boolean canScrollVertical(int direction) {
+        int scrollY = getScrollY();
+        if (direction < 0) {
+            return scrollY > 0;
+        } else {
+            return !isScrollToBottom();
+        }
+    }
+
+    /**
      * 是否已经滚动到底
      *
      * @return
@@ -128,7 +144,7 @@ public class LWebView extends WebView implements ILinkageScroll, NestedScrolling
             case MotionEvent.ACTION_CANCEL:
             case MotionEvent.ACTION_UP:
                 mPosIndicator.onRelease(x, y);
-
+                mVelocityTracker.addMovement(event);
                 if (mVelocityTracker != null) {
                     mVelocityTracker.computeCurrentVelocity(1000, mMaximumVelocity);
                     int yVelocity = (int) mVelocityTracker.getYVelocity();
@@ -149,6 +165,7 @@ public class LWebView extends WebView implements ILinkageScroll, NestedScrolling
      * @param velocityY
      */
     private void flingWithNestedDispatch(int velocityY) {
+        Log.d("zhanghao", "velocityY: " + velocityY);
         final int scrollY = getScrollY();
         final boolean canFling = (scrollY > 0 || velocityY > 0)
                 && (scrollY < getScrollRange() || velocityY < 0);
@@ -214,6 +231,14 @@ public class LWebView extends WebView implements ILinkageScroll, NestedScrolling
         super.scrollTo(0, contentHeight - getHeight());
     }
 
+    /**
+     * 平滑滚动到底部
+     */
+    public void smoothScrollToBottom() {
+        mScroller.startScroll(0, getScrollY(), 0, getScrollRange() - getScrollY(), 200);
+        invalidate();
+    }
+
     @Override
     public void scrollTo(int x, int y) {
         int scrollRange = getScrollRange();
@@ -242,6 +267,8 @@ public class LWebView extends WebView implements ILinkageScroll, NestedScrolling
 
             @Override
             public void scrollContentToBottom() {
+//                mScroller.abortAnimation();
+//                smoothScrollToBottom();
                 scrollToBottom();
             }
 
@@ -252,7 +279,7 @@ public class LWebView extends WebView implements ILinkageScroll, NestedScrolling
 
             @Override
             public boolean canScrollVertically(int direction) {
-                return LWebView.this.canScrollVertically(direction);
+                return LWebView.this.canScrollVertical(direction);
             }
 
             @Override

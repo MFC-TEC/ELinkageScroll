@@ -1,7 +1,6 @@
 package com.baidu.elinkagescroll;
 
 import android.content.Context;
-import android.graphics.Canvas;
 import android.graphics.RectF;
 import android.support.v4.view.NestedScrollingParent;
 import android.support.v4.view.NestedScrollingParentHelper;
@@ -14,12 +13,9 @@ import android.view.View;
 import android.view.ViewConfiguration;
 import android.view.ViewGroup;
 import android.view.ViewParent;
-import android.webkit.HttpAuthHandler;
 import android.widget.Scroller;
 
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 /**
@@ -43,7 +39,7 @@ import java.util.Map;
 public class ELinkageScrollLayout extends ViewGroup implements NestedScrollingParent {
 
     public static final String TAG = "ELinkageScrollLayout";
-    public static final boolean DEBUG = false;
+    public static final boolean DEBUG = true;
 
     /** Fling方向：以手指滑动方向为准 */
     public static final int FLING_ORIENTATION_UP = 0x11;
@@ -51,11 +47,11 @@ public class ELinkageScrollLayout extends ViewGroup implements NestedScrollingPa
     public static final int FLING_ORIENTATION_DOWN = 0x12;
     /** Fling方向：以手指滑动方向为准 */
     public static final int FLING_ORIENTATION_NONE = 0x00;
+    /** 滚动动画时长 */
+    public static final int LOC_SCROLL_DURATION = 280;
 
     /** NestedScrollingParentHelper */
     private NestedScrollingParentHelper mParentHelper;
-    /** 所有子view集合 */
-    private List<View> mLinkageChildren = new ArrayList<>();
     /** 所有子view的边界位置 */
     private HashMap<View, ViewEdge> mEdgeList = new HashMap<>();
     /** 联动容器可滚动的范围 */
@@ -64,6 +60,8 @@ public class ELinkageScrollLayout extends ViewGroup implements NestedScrollingPa
     private Scroller mVelocityScroller;
     /** 联动容器滚动的Scroller */
     private Scroller mScroller;
+    /** 联动容器滚动定位子view */
+    private Scroller mLocScroller;
     /** VelocityTracker */
     private VelocityTracker mVelocityTracker;
     /** 手势辅助工具类 */
@@ -174,6 +172,7 @@ public class ELinkageScrollLayout extends ViewGroup implements NestedScrollingPa
 
         mParentHelper = new NestedScrollingParentHelper(this);
         mScroller = new Scroller(getContext());
+        mLocScroller = new Scroller(getContext());
         mVelocityScroller = new Scroller(getContext());
         mPosIndicator = new PosIndicator(false);
         ViewConfiguration viewConfiguration = ViewConfiguration.get(context);
@@ -276,6 +275,8 @@ public class ELinkageScrollLayout extends ViewGroup implements NestedScrollingPa
                 break;
             case MotionEvent.ACTION_DOWN:
                 mIsIntercept = false;
+                // 校验一遍所有子view，内容是否滚动正确
+                checkTargetsScroll();
                 break;
             case MotionEvent.ACTION_UP:
             case MotionEvent.ACTION_CANCEL:
@@ -328,6 +329,7 @@ public class ELinkageScrollLayout extends ViewGroup implements NestedScrollingPa
         mFlingOrientation = FLING_ORIENTATION_NONE;
         mVelocityScroller.abortAnimation();
         mScroller.abortAnimation();
+        mLocScroller.abortAnimation();
     }
 
     /**
@@ -338,7 +340,9 @@ public class ELinkageScrollLayout extends ViewGroup implements NestedScrollingPa
      * @return
      */
     private View getTouchTarget(float rawX, float rawY) {
-        for (View target : mLinkageChildren) {
+        int count = getChildCount();
+        for (int i = 0; i < count; i++) {
+            View target = getChildAt(i);
             int[] location = new int[2];
             target.getLocationOnScreen(location);
             int left = location[0];
@@ -359,6 +363,19 @@ public class ELinkageScrollLayout extends ViewGroup implements NestedScrollingPa
             int curY = mScroller.getCurrY();
             scrollTo(0, curY, true);
             invalidate();
+        }
+        if (mLocScroller.computeScrollOffset()) {
+            int curY = mLocScroller.getCurrY();
+            scrollTo(0, curY, false);
+            invalidate();
+
+            if (mLocScroller.isFinished()) {
+                // 滚动结束，校验子view内容的滚动位置
+                if (DEBUG) {
+                    Log.d(TAG, "#computeScroll#, LocScroll finished");
+                }
+                checkTargetsScroll();
+            }
         }
     }
 
@@ -395,10 +412,10 @@ public class ELinkageScrollLayout extends ViewGroup implements NestedScrollingPa
             if (scrollY == edge) {
                 int velocity = (int) mScroller.getCurrVelocity();
                 if (mFlingOrientation == FLING_ORIENTATION_UP) {
-                    velocity = velocity > 0? velocity : - velocity;
+                    velocity = velocity > 0 ? velocity : - velocity;
                 }
                 if (mFlingOrientation == FLING_ORIENTATION_DOWN) {
-                    velocity = velocity < 0? velocity : - velocity;
+                    velocity = velocity < 0 ? velocity : - velocity;
                 }
                 if (DEBUG) {
                     Log.d(TAG, "#scrollTo# To Edge: " + edge + ", velocity: " + velocity);
@@ -442,7 +459,9 @@ public class ELinkageScrollLayout extends ViewGroup implements NestedScrollingPa
      * @return
      */
     private View getTargetByEdge(int edge) {
-        for (View target : mLinkageChildren) {
+        int count = getChildCount();
+        for (int i = 0; i < count; i++) {
+            View target = getChildAt(i);
             ViewEdge viewEdge = mEdgeList.get(target);
             if (viewEdge.topEdge == edge) {
                 return target;
@@ -461,26 +480,33 @@ public class ELinkageScrollLayout extends ViewGroup implements NestedScrollingPa
     private int getNextEdge() {
         int scrollY = getScrollY();
         if (mFlingOrientation == FLING_ORIENTATION_UP) {
-            for (View target : mLinkageChildren) {
-                LinkageScrollHandler linkageScrollHandler
+            // 从上往下遍历
+            int count = getChildCount();
+            for (int i = 0; i < count; i++) {
+                View target = getChildAt(i);
+                LinkageScrollHandler targetLinkageHandler
                         = getLinkageScrollHandler(target);
                 int topEdge = mEdgeList.get(target).topEdge;
-                if (topEdge > scrollY
-                        && isTargetScrollable(target)
-                        && linkageScrollHandler.canScrollVertically(1)) {
-                    return topEdge;
+                if (topEdge <= scrollY
+                        || !isTargetScrollable(target)
+                        || !targetLinkageHandler.canScrollVertically(1)) {
+                    continue;
                 }
+                return topEdge;
             }
         } else if (mFlingOrientation == FLING_ORIENTATION_DOWN) {
-            for (View target : mLinkageChildren) {
-                LinkageScrollHandler linkageScrollHandler
+            // 从下往上遍历
+            for (int i = getChildCount() - 1; i >= 0; i--) {
+                View target = getChildAt(i);
+                LinkageScrollHandler targetLinkageHandler
                         = getLinkageScrollHandler(target);
-                int bottomEdge = mEdgeList.get(target).bottomEdge;
-                if (bottomEdge >= scrollY
-                        && isTargetScrollable(target)
-                        && linkageScrollHandler.canScrollVertically(-1)) {
-                    return mEdgeList.get(target).topEdge;
+                int topEdge = mEdgeList.get(target).topEdge;
+                if (topEdge >= scrollY
+                        || !isTargetScrollable(target)
+                        || !targetLinkageHandler.canScrollVertically(-1)) {
+                    continue;
                 }
+                return topEdge;
             }
         } else {
             throw new RuntimeException("#getNextEdge# unknown Fling Orientation");
@@ -514,7 +540,7 @@ public class ELinkageScrollLayout extends ViewGroup implements NestedScrollingPa
      * @return
      */
     private boolean isFirstTarget(View target) {
-        View first = mLinkageChildren.get(0);
+        View first = getChildAt(0);
         return target == first;
     }
 
@@ -525,8 +551,38 @@ public class ELinkageScrollLayout extends ViewGroup implements NestedScrollingPa
      * @return
      */
     private boolean isLastTarget(View target) {
-        View last = mLinkageChildren.get(mLinkageChildren.size() - 1);
+        View last = getChildAt(getChildCount() - 1);
         return target == last;
+    }
+
+    /**
+     * 校验子view内容滚动位置是否正确
+     */
+    private void checkTargetsScroll() {
+        int scrollY = getScrollY();
+        View target = null;
+        for (Map.Entry<View, ViewEdge> entry : mEdgeList.entrySet()) {
+            ViewEdge value = entry.getValue();
+            if (scrollY >= value.topEdge && scrollY < value.bottomEdge) {
+                target = entry.getKey();
+                break;
+            }
+        }
+        if (target == null) {
+            return;
+        }
+        int index = indexOfChild(target);
+        if (DEBUG) {
+            Log.d(TAG, "#checkTargetsScroll# index: " + index);
+        }
+        for (int i = 0; i < index; i++) {
+            final View child = getChildAt(i);
+            scrollTargetContentToBottom(child);
+        }
+        for (int i = index + 1; i < getChildCount(); i++) {
+            final View child = getChildAt(i);
+            scrollTargetContentToTop(child);
+        }
     }
 
     /**
@@ -579,7 +635,6 @@ public class ELinkageScrollLayout extends ViewGroup implements NestedScrollingPa
             }
             ((ILinkageScroll) child).setChildLinkageEvent(mChildLinkageEvent);
             child.setOverScrollMode(OVER_SCROLL_NEVER);
-            mLinkageChildren.add(child);
         }
     }
 
@@ -587,9 +642,9 @@ public class ELinkageScrollLayout extends ViewGroup implements NestedScrollingPa
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
         super.onMeasure(widthMeasureSpec, heightMeasureSpec);
 
-        int size = mLinkageChildren.size();
+        int size = getChildCount();
         for (int i = 0; i < size; i++) {
-            View child = mLinkageChildren.get(i);
+            View child = getChildAt(i);
             measureChild(child, widthMeasureSpec, heightMeasureSpec);
         }
     }
@@ -598,9 +653,9 @@ public class ELinkageScrollLayout extends ViewGroup implements NestedScrollingPa
     protected void onLayout(boolean changed, int l, int t, int r, int b) {
         mScrollRange = 0;
         int childTop = t;
-        int size = mLinkageChildren.size();
+        int size = getChildCount();
         for (int i = 0; i < size; i++) {
-            View child = mLinkageChildren.get(i);
+            View child = getChildAt(i);
             int bottom = childTop + child.getMeasuredHeight();
             child.layout(l, childTop, r, bottom);
             childTop = bottom;
@@ -717,6 +772,82 @@ public class ELinkageScrollLayout extends ViewGroup implements NestedScrollingPa
     }
 
     /**
+     * 直接跳转到某个子view
+     *
+     * @param index
+     */
+    public void gotoChild(int index) {
+        // 1. scroll到指定子view
+        smoothScrollToIndex(index);
+        // 2. child[0] - child[index-1]的子view内容都必须滚动到底部
+        for (int i = 0; i < index; i++) {
+            final View target = getChildAt(i);
+            scrollTargetContentToBottom(target);
+        }
+        // 3. child[index] - child[childCount - 1]的子view内容都滚动到顶部
+        for (int i = index; i < getChildCount(); i++) {
+            final View target = getChildAt(i);
+            scrollTargetContentToTop(target);
+        }
+    }
+
+    /**
+     * 滚动到某个子view
+     *
+     * @param index
+     */
+    private void scrollToIndex(int index) {
+        index = index < 0 ? 0 : index;
+        index = index > getChildCount() - 1 ? getChildCount() - 1 : index;
+        View target = getChildAt(index);
+        ViewEdge viewEdge = mEdgeList.get(target);
+        // 滚动到某个子view
+        scrollTo(0, viewEdge.topEdge, false);
+    }
+
+    /**
+     * 平滑滚动到某个子view
+     *
+     * @param index
+     */
+    private void smoothScrollToIndex(int index) {
+        index = index < 0 ? 0 : index;
+        index = index > getChildCount() - 1 ? getChildCount() - 1 : index;
+        View target = getChildAt(index);
+        ViewEdge viewEdge = mEdgeList.get(target);
+        mLocScroller.startScroll(0, getScrollY(), 0,
+                viewEdge.topEdge - getScrollY(),
+                LOC_SCROLL_DURATION);
+        invalidate();
+    }
+
+    /**
+     * 滚动指定子view的内容到顶部
+     * @param target
+     */
+    private void scrollTargetContentToTop(View target) {
+        LinkageScrollHandler targetScrollHandler
+                = ((ILinkageScroll)target).provideScrollHandler();
+        if (targetScrollHandler.isScrollable()
+                && targetScrollHandler.canScrollVertically(-1)) {
+            targetScrollHandler.scrollContentToTop();
+        }
+    }
+
+    /**
+     * 滚动指定子view的内容到底部
+     * @param target
+     */
+    private void scrollTargetContentToBottom(View target) {
+        LinkageScrollHandler targetScrollHandler
+                = ((ILinkageScroll)target).provideScrollHandler();
+        if (targetScrollHandler.isScrollable()
+                && targetScrollHandler.canScrollVertically(1)) {
+            targetScrollHandler.scrollContentToBottom();
+        }
+    }
+
+    /**
      * 返回targetview的edge
      *
      * @return
@@ -762,26 +893,30 @@ public class ELinkageScrollLayout extends ViewGroup implements NestedScrollingPa
     @Override
     protected int computeVerticalScrollRange() {
         int range = 0;
-        for (View child : mLinkageChildren) {
+
+        int count = getChildCount();
+        for (int i = 0; i < count; i++) {
+            View child = getChildAt(i);
             ILinkageScroll linkageScroll = (ILinkageScroll) child;
             int childRange = linkageScroll.provideScrollHandler().getVerticalScrollRange();
             range += childRange;
         }
 
-        Log.d("zhanghao", "range: " + range);
         return range;
     }
 
     @Override
     protected int computeVerticalScrollOffset() {
         int offset = 0;
-        for (View child : mLinkageChildren) {
+
+        int count = getChildCount();
+        for (int i = 0; i < count; i++) {
+            View child = getChildAt(i);
             ILinkageScroll linkageScroll = (ILinkageScroll) child;
             int childOffset = linkageScroll.provideScrollHandler().getVerticalScrollOffset();
             offset += childOffset;
         }
         offset += getScrollY();
-        Log.d("zhanghao", "offset: " + offset);
         return offset;
     }
 

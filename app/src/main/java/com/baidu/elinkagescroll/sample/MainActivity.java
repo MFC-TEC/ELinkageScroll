@@ -10,6 +10,7 @@ import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.Toast;
 
+import com.baidu.elinkagescroll.ELinkageScrollLayout;
 import com.baidu.elinkagescroll.R;
 
 import java.util.ArrayList;
@@ -20,10 +21,14 @@ public class MainActivity extends AppCompatActivity {
 
     private WebView mWebView;
 
+    private ELinkageScrollLayout mElink;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        mElink = findViewById(R.id.elink);
 
         mWebView = findViewById(R.id.webview);
         initWebView();
@@ -71,5 +76,9 @@ public class MainActivity extends AppCompatActivity {
 
     public void onLLButtonClick(View view) {
         Toast.makeText(this, "Button Click", Toast.LENGTH_SHORT).show();
+    }
+
+    public void gotoTarget(View view) {
+        mElink.gotoChild(3);
     }
 }
