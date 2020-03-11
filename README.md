@@ -145,6 +145,6 @@
 
 # 联系方式 
 如果你在使用ELinkageScrollLayout过程中发现任何问题，你可以通过如下方式联系我：
-* 邮箱: zhanghao43@baidu.com
+* 邮箱: 
 * 微博：https://weibo.com/u/5894400455
 
